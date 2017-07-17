@@ -18,13 +18,10 @@ const connector = new builder.ChatConnector({
 // Listen for messages from users
 server.post('api/messages',connector.listen());
 
-// Reveive messages from the user and respond by echoing each message back (prefixed with 'You said:')
+// Reveive messages from the user
 const bot = new builder.UniversalBot(connector,[(session) =>{
 
-    //Default message
-    
-
-    //Find Users intent
+    //Base code
 
     if ((session.message.text.toLowerCase() == 'hello') || (session.message.text.toLowerCase() == 'hi')){
         //Clear userData
@@ -33,13 +30,6 @@ const bot = new builder.UniversalBot(connector,[(session) =>{
         session.send("Welcome to the bot");
     };
    
-
-
-    /*
-    request('http://www.google.com',(error,response,body) => {
-        session.send(body);
-    })
-    */
     }
 ]);
 
@@ -49,15 +39,16 @@ bot.dialog('saidGreeting', [
             builder.Prompts.text(session, "Sorry I could not understand that. I can understand either yes or no.")
         }
         else{
-            builder.Prompts.text(session, "Hi there! Do you want the weather for your location?");
+             builder.Prompts.text(session, "Hi there! Do you want the weather for your location?");
+            sendConfirm(session);
         }
-        //Send a Card to the user
+
     },
     function (session, results){
-        if (results.response.toLowerCase() == "yes"){
+        if (results.response.toLowerCase() === 'yes'){
             session.beginDialog('askedLocation');
         }
-        else if(results.response.toLowerCase() == "no"){
+        else if(results.response.toLowerCase() === 'no'){
             session.endDialog("No problem, call on me if you need me!");
         }
         else{
@@ -67,7 +58,6 @@ bot.dialog('saidGreeting', [
     },
     function (session, results){
         session.endDialog("No problem, call on me if you need me!")
-        //sompething
     }
 ]).triggerAction(
     {
@@ -86,23 +76,25 @@ bot.dialog('askedLocation', [
         request(uri,(error,response,body) => {
             if (!error && response.statusCode === 200) {
                 const res = JSON.parse(body);
-                session.send ("It is %d°C and %s in %s", res.main.temp.toFixed(1) , res.weather[0].description, res.name);
+                session.send ("It is %d°C and %s in %s.", res.main.temp , res.weather[0].description, res.name);
                 builder.Prompts.text(session, "Did you want weather elsewhere?");
+                sendConfirm(session);
             } 
             else {
                 console.log("Got an error: ", error, ", status code: ", response.statusCode)
                 session.send("Sorry, I couldnt find the weather there.")
                 builder.Prompts.text(session, "Did you want weather elsewhere?");
+                sendConfirm(session);
             }
         })
 
         
     },
     function(session, results){
-        if (results.response.toLowerCase() == 'yes'){
+        if (results.response.toLowerCase() === 'yes'){
             session.replaceDialog('askedLocation');
         }
-        else if(results.response.toLowerCase() == 'no'){
+        else if(results.response.toLowerCase() === 'no'){
             session.endDialog()
         }
         else{
@@ -110,4 +102,17 @@ bot.dialog('askedLocation', [
             session.replaceDialog('askedLocation')
         }
     }
-])
+]);
+
+const sendConfirm = session => {
+        var msg = new builder.Message(session);
+        msg.attachmentLayout(builder.AttachmentLayout.carousel)
+        msg.attachments([
+            new builder.HeroCard(session)
+                .buttons([
+                    builder.CardAction.imBack(session, "yes", "Yes"),
+                    builder.CardAction.imBack(session, "no", "No")
+        ]),
+    ]);
+    session.send(msg)//.endDialogWithResult();
+}
